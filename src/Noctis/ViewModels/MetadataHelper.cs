@@ -152,7 +152,11 @@ public static class MetadataHelper
             () => main?.Settings.GetSettings() ?? new AppSettings(),
             s => { if (main is not null) main.Settings.ApplyLyricsStudioSettings(s); },
             new Services.LyricsStudio.LyricsStudioDraftStore(
-                Path.Combine(App.Services!.GetRequiredService<IPersistenceService>().DataDirectory, "lyrics_studio_drafts")));
+                Path.Combine(App.Services!.GetRequiredService<IPersistenceService>().DataDirectory, "lyrics_studio_drafts")))
+        {
+            // "Sync with lrc.red's model" beside Lullaby (offered while lrc.red is on in Settings).
+            LrcRed = App.Services!.GetService<ILrcRedLyricsService>(),
+        };
     }
 
     /// <summary>

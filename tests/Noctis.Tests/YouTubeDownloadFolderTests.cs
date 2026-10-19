@@ -30,15 +30,25 @@ public class YouTubeDownloadFolderTests
     [InlineData(@"C:\Users\me\Music\YouTube", @"C:\Users\me\Music\")]
     // A root plus a folder inside it: the root.
     [InlineData(@"D:\Music\YouTube", @"D:\Music", @"D:\Music\Extra")]
-    // Only the drive is shared, or nothing: the old "inside the first folder" rule.
-    [InlineData(@"B:\Rap\YouTube", @"B:\Rap", @"B:\Pop")]
-    [InlineData(@"C:\Music\YouTube", @"C:\Music", @"D:\Songs")]
-    [InlineData(@"B:\YouTube", @"B:\")]
     // Unix and network shares keep their prefix.
     [InlineData("/home/me/Music/YouTube", "/home/me/Music/Rap", "/home/me/Music/Pop")]
     [InlineData(@"\\nas\share\Music\YouTube", @"\\nas\share\Music\A", @"\\nas\share\Music\B")]
     public void DefaultDownloadFolder_FollowsTheSharedParent(string expected, params string[] folders) =>
         Assert.Equal(expected, YouTubeImportService.DefaultDownloadFolder(folders));
+
+    /// <summary>
+    /// Only the drive is shared, or nothing: the old "inside the first folder" rule. That
+    /// folder is joined with the OS's own separator (Path.Combine), so the expected path is
+    /// too: "C:\Music\YouTube" on Windows. A drive-letter path is not a real folder off
+    /// Windows, where "\" is an ordinary filename character.
+    /// </summary>
+    [Theory]
+    [InlineData(@"B:\Rap", @"B:\Rap", @"B:\Pop")]
+    [InlineData(@"C:\Music", @"C:\Music", @"D:\Songs")]
+    [InlineData(@"B:", @"B:\")]
+    [InlineData("/Volumes/Rap", "/Volumes/Rap", "/Users/me/Pop")]
+    public void NoUsefulSharedParent_InsideTheFirstFolder(string first, params string[] folders) =>
+        Assert.Equal(first + Path.DirectorySeparatorChar + "YouTube", YouTubeImportService.DefaultDownloadFolder(folders));
 
     [Fact]
     public void NoMusicFolders_NoDefault() =>

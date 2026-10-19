@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
@@ -381,6 +382,69 @@ public class LyricsSearchDialogTests
     /// <summary>Real Skia only (NOCTIS_TEST_SKIA=1): the dialog with results, while searching,
     /// and with nothing found, over a busy owner. NOCTIS_SHOTS_PHASE picks the folder
     /// (lyrics-before / lyrics-after) so the two sets line up by name.</summary>
+    /// <summary>
+    /// Live 10-19: a screen reader read every source row as
+    /// "Noctis.ViewModels.LyricsSearchResultRow" (the row's ToString). Each row reads its
+    /// source and what it found, like the other lists, and lrc.red's model button reads what
+    /// it shows.
+    /// </summary>
+    [AvaloniaFact]
+    public void SourceRows_ReadTheirSourceAndWhatItFound()
+    {
+        EnsureAppStyles();
+        var lineSynced = new LrcLibResult
+        {
+            TrackName = "Test Song", ArtistName = "Test Artist", Duration = 200,
+            SyncedLyrics = "[00:01.00]line one", PlainLyrics = "line one", Isrc = "USUM72413062",
+        };
+        var vm = new LyricsSearchViewModel(new Track { Title = "Test Song", Artist = "Test Artist" },
+            new[] { "LRCLIB", "Kugou", "NetEase", "lrc.red", "Unison" },
+            () => Task.FromResult<IReadOnlyList<string>>(new[] { "LRCLIB", "Kugou", "NetEase", "lrc.red", "Unison" }),
+            (_, _, _, _) => Task.FromResult<IReadOnlyList<LyricsSourceHit>>(new[]
+            {
+                new LyricsSourceHit("LRCLIB", null, true),
+                new LyricsSourceHit("Kugou", Result(synced: Elrc), false),
+                new LyricsSourceHit("NetEase", Result(plain: "plain line one"), false),
+                new LyricsSourceHit("lrc.red", lineSynced, false),
+                new LyricsSourceHit("Unison", null, true, Busy: true),
+            }),
+            (_, _) => { })
+        {
+            SyncWithLrcRedModel = (_, _) => Task.FromResult(Result(synced: Elrc)),
+            CanOfferLrcRedModel = () => Task.FromResult(true),
+        };
+        var (_, win, host) = Open(vm);
+        try
+        {
+            Assert.True(PumpUntil(() => CardSettledOpen(host)));
+            // The list virtualizes: bring each row in to read it.
+            var list = win.GetVisualDescendants().OfType<ListBox>().Single();
+            var names = new List<string?>();
+            for (var i = 0; i < 5; i++)
+            {
+                list.ScrollIntoView(i);
+                Assert.True(PumpUntil(() => list.ContainerFromIndex(i) is ListBoxItem));
+                names.Add(ControlAutomationPeer.CreatePeerForElement((ListBoxItem)list.ContainerFromIndex(i)!).GetName());
+            }
+            _o.WriteLine(string.Join(" | ", names));
+            Assert.Equal(new[]
+            {
+                "LRCLIB, Couldn't connect",
+                "Kugou, Word-synced, Best",
+                "NetEase, Plain",
+                "lrc.red, Synced",
+                "Unison, Busy, try again in a moment",
+            }, names);
+
+            list.ScrollIntoView(3);
+            PumpUntil(() => false, 50);
+            var model = list.ContainerFromIndex(3)!.GetVisualDescendants().OfType<Button>().Single(b => b.Classes.Contains("ls-model"));
+            Assert.True(model.IsVisible);
+            Assert.Equal("Word-sync with lrc.red's model", ControlAutomationPeer.CreatePeerForElement(model).GetName());
+        }
+        finally { if (win.IsVisible) { win.Close(); PumpUntil(() => !win.IsVisible); } }
+    }
+
     [AvaloniaFact]
     public void Probe_SavesTheSearchLyricsDialog()
     {

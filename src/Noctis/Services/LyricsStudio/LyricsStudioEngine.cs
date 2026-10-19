@@ -15,6 +15,8 @@ public enum LyricsStudioSource
     ExistingFile,
     /// <summary>Lyrics the user pasted or imported in the Studio, timed against the audio.</summary>
     PastedLyrics,
+    /// <summary>Not a run here: lrc.red's in-house model word-synced lrc.red's own lyrics of the song.</summary>
+    LrcRed,
 }
 
 /// <summary>

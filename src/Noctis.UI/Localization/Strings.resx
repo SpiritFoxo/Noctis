@@ -529,7 +529,7 @@ Deezer and TIDAL: paste the link.</value></data>
   <data name="Settings.Kugou" xml:space="preserve"><value>Kugou</value><comment>Text in SettingsView.axaml — lyrics provider name</comment></data>
   <data name="Settings.KugouHint" xml:space="preserve"><value>Word-synced lyrics catalog</value><comment>Text in SettingsView.axaml</comment></data>
   <data name="Settings.LrcRed" xml:space="preserve"><value>lrc.red</value><comment>Text in SettingsView.axaml — lyrics provider name</comment></data>
-  <data name="Settings.LrcRedHint" xml:space="preserve"><value>Word- and line-synced lyrics with duets</value><comment>Text in SettingsView.axaml</comment></data>
+  <data name="Settings.LrcRedHint" xml:space="preserve"><value>Word- and line-synced lyrics with duets. Songs it has only line-synced can be word-synced by its model from the lyrics page.</value><comment>Text in SettingsView.axaml</comment></data>
   <data name="Settings.Unison" xml:space="preserve"><value>Unison</value><comment>Text in SettingsView.axaml — lyrics provider name</comment></data>
   <data name="Settings.UnisonHint" xml:space="preserve"><value>Better Lyrics community lyrics · Lyrics from Unison (unison.boidu.dev)</value><comment>Text in SettingsView.axaml; keep "Lyrics from Unison (unison.boidu.dev)": the attribution Unison's ODbL licence asks for</comment></data>
   <data name="Settings.YouTubeMusicLyrics" xml:space="preserve"><value>YouTube Music</value><comment>Text in SettingsView.axaml — lyrics provider name</comment></data>
@@ -1195,21 +1195,43 @@ Deezer and TIDAL: paste the link.</value></data>
   <data name="LyricsSearch.Plain" xml:space="preserve"><value>Plain</value><comment>Result format in LyricsSearchViewModel (no timing)</comment></data>
   <data name="LyricsSearch.NoMatch" xml:space="preserve"><value>No match</value><comment>Result in LyricsSearchViewModel</comment></data>
   <data name="LyricsSearch.CouldNotConnect" xml:space="preserve"><value>Couldn't connect</value><comment>Result in LyricsSearchViewModel</comment></data>
+  <data name="LyricsSearch.Busy" xml:space="preserve"><value>Busy, try again in a moment</value><comment>Result in LyricsSearchViewModel: the source answered "busy" (503/429), so the connection works</comment></data>
+  <data name="LyricsSearch.BusyStatus" xml:space="preserve"><value>{0} is busy, try again in a moment.</value><comment>Status in LyricsSearchViewModel when every searched source failed and one said it is busy; {0} = source name</comment></data>
   <data name="LyricsSearch.Instrumental" xml:space="preserve"><value>Instrumental</value><comment>Result in LyricsSearchViewModel</comment></data>
+  <data name="LyricsSearch.ModelSynced" xml:space="preserve"><value>Word-synced by lrc.red's model. Press Use Lyrics to keep them.</value><comment>Status in LyricsSearchViewModel after lrc.red's row was word-synced by its model</comment></data>
   <data name="Lyrics.WrittenBy" xml:space="preserve"><value>Written By: </value><comment>Text in LyricsView.axaml</comment></data>
   <data name="Lyrics.Follow" xml:space="preserve"><value>Follow</value><comment>Text in LyricsView.axaml</comment></data>
   <data name="Lyrics.PreviewUnsaved" xml:space="preserve"><value>Preview · unsaved lyrics</value><comment>Text in LyricsView.axaml — Lyrics Studio preview indicator</comment></data>
   <data name="Lyrics.SaveReplaceOne" xml:space="preserve"><value>“{0}” already has {1}.
 
 Saving replaces it with the lyrics on screen. A lyrics file Noctis didn't write goes to the Recycle Bin first.</value><comment>Save Lyrics to File prompt in LyricsViewModel; {0} = song title, {1} = one quoted file name</comment></data>
+  <data name="Lyrics.SaveReplaceOneTrash" xml:space="preserve"><value>“{0}” already has {1}.
+
+Saving replaces it with the lyrics on screen. A lyrics file Noctis didn't write goes to the Trash first.</value><comment>Save Lyrics to File prompt in LyricsViewModel; {0} = song title, {1} = one quoted file name (macOS/Linux)</comment></data>
   <data name="Lyrics.SaveReplaceMany" xml:space="preserve"><value>“{0}” already has {1}.
 
 Saving replaces them with the lyrics on screen. A lyrics file Noctis didn't write goes to the Recycle Bin first.</value><comment>Save Lyrics to File prompt in LyricsViewModel; {0} = song title, {1} = quoted file names joined by Lyrics.SaveFilesJoin</comment></data>
+  <data name="Lyrics.SaveReplaceManyTrash" xml:space="preserve"><value>“{0}” already has {1}.
+
+Saving replaces them with the lyrics on screen. A lyrics file Noctis didn't write goes to the Trash first.</value><comment>Save Lyrics to File prompt in LyricsViewModel; {0} = song title, {1} = quoted file names joined by Lyrics.SaveFilesJoin (macOS/Linux)</comment></data>
   <data name="Lyrics.SaveFilesJoin" xml:space="preserve"><value> and </value><comment>Joins the file names in Lyrics.SaveReplaceMany (keep the spaces)</comment></data>
   <data name="Lyrics.SaveReplaceTags" xml:space="preserve"><value>the lyrics inside the audio file</value><comment>Save Lyrics to File prompt: joined into {1} of Lyrics.SaveReplaceOne/Many when the save replaces lyrics in the audio file's tags (GitHub #135)</comment></data>
   <data name="Lyrics.Saved" xml:space="preserve"><value>Saved Lyrics</value><comment>Lyrics page status after Save Lyrics to File</comment></data>
   <data name="Lyrics.SaveKeptOld" xml:space="preserve"><value>Saved · an old lyrics file was kept, couldn't move it to the Recycle Bin</value><comment>Lyrics page status after Save Lyrics to File</comment></data>
+  <data name="Lyrics.SaveKeptOldTrash" xml:space="preserve"><value>Saved · an old lyrics file was kept, couldn't move it to the Trash</value><comment>Lyrics page status after Save Lyrics to File (macOS/Linux)</comment></data>
   <data name="Lyrics.SaveFailed" xml:space="preserve"><value>Save failed — check file permissions</value><comment>Lyrics page status after Save Lyrics to File</comment></data>
+  <data name="Lyrics.LrcRedSync" xml:space="preserve"><value>Word-sync with lrc.red's model</value><comment>Lyrics page pill and lrc.red's row in Search Lyrics: has lrc.red's in-house model time every word of a song it has only line-synced</comment></data>
+  <data name="Lyrics.LrcRedSyncWorking" xml:space="preserve"><value>Timing every word… a few seconds</value><comment>Lyrics page pill / Search Lyrics row while lrc.red's model runs</comment></data>
+  <data name="Lyrics.LrcRedSyncRetry" xml:space="preserve"><value>Try again</value><comment>Lyrics page pill / Search Lyrics row after lrc.red's model sync failed</comment></data>
+  <data name="Lyrics.LrcRedCredit" xml:space="preserve"><value>Lyrics from lrc.red</value><comment>Lyrics page credit under lyrics that came from lrc.red</comment></data>
+  <data name="Lyrics.LrcRedModelCredit" xml:space="preserve"><value>Word-synced by lrc.red's model</value><comment>Lyrics page credit, and the Search Lyrics row format, for lyrics lrc.red's model word-synced</comment></data>
+  <data name="Lyrics.LrcRedSyncNetwork" xml:space="preserve"><value>Couldn't reach lrc.red. Check your internet connection.</value><comment>Lyrics page / Search Lyrics / Lyrics Studio: lrc.red model sync failed</comment></data>
+  <data name="Lyrics.LrcRedSyncTimeout" xml:space="preserve"><value>lrc.red's model took too long. Try again in a moment.</value><comment>lrc.red model sync failed: timeout</comment></data>
+  <data name="Lyrics.LrcRedSyncBusy" xml:space="preserve"><value>lrc.red is busy right now. Try again in a minute.</value><comment>lrc.red model sync failed: too many requests (429)</comment></data>
+  <data name="Lyrics.LrcRedSyncRefused" xml:space="preserve"><value>lrc.red: {0}</value><comment>lrc.red model sync refused; {0} = lrc.red's own message (English, from the server)</comment></data>
+  <data name="Lyrics.LrcRedSyncStatus" xml:space="preserve"><value>Couldn't sync ({0})</value><comment>lrc.red model sync refused without a message; {0} = HTTP status code</comment></data>
+  <data name="Lyrics.LrcRedSyncBadAnswer" xml:space="preserve"><value>lrc.red sent lyrics Noctis couldn't read.</value><comment>lrc.red model sync: unreadable answer</comment></data>
+  <data name="Lyrics.LrcRedSyncNoWords" xml:space="preserve"><value>lrc.red's model couldn't time the words of this song.</value><comment>lrc.red model sync answered without word timings</comment></data>
   <data name="Lyrics.OffsetEarlier" xml:space="preserve"><value>Lyrics {0:0.0} s earlier</value><comment>Notice pill after Ctrl+scroll over the lyrics (LyricsViewModel); {0} = seconds</comment></data>
   <data name="Lyrics.OffsetLater" xml:space="preserve"><value>Lyrics {0:0.0} s later</value><comment>Notice pill after Ctrl+scroll over the lyrics (LyricsViewModel); {0} = seconds</comment></data>
   <data name="Lyrics.OffsetInSync" xml:space="preserve"><value>Lyrics in sync</value><comment>Notice pill after Ctrl+scroll brings the lyrics offset back to 0 (LyricsViewModel)</comment></data>
@@ -2507,6 +2529,14 @@ Quote phrases: album:"ok computer" · Years: year:1990-1999, year:&gt;2000</valu
   <data name="LyricsStudio.ReviewEmptyBody" xml:space="preserve"><value>Pick a song in the list. Songs with lyrics are timed when you press Start; songs without open a box to paste them.</value><comment>Review pane empty state</comment></data>
   <data name="LyricsStudio.Upgrade" xml:space="preserve"><value>Time every word</value><comment>Review button, shown for line-level lyrics</comment></data>
   <data name="LyricsStudio.UpgradeTip" xml:space="preserve"><value>Times every word of these lines. The line-level file is kept.</value><comment>Review button tooltip</comment></data>
+  <data name="LyricsStudio.LrcRedSync" xml:space="preserve"><value>Sync with lrc.red's model</value><comment>Review / lyrics box button, shown when lrc.red has the song only line-synced or plain</comment></data>
+  <data name="LyricsStudio.LrcRedSyncTip" xml:space="preserve"><value>Much faster than Lullaby: lrc.red's in-house model times every word of its own copy of this song. Its lyrics replace the ones shown; nothing is written until you press Save lyrics.</value><comment>Tooltip of the lrc.red model button</comment></data>
+  <data name="LyricsStudio.LrcRedSyncConfirm" xml:space="preserve"><value>lrc.red's word-synced lyrics will replace the lyrics and timings shown for “{0}”.
+
+Nothing is written to disk until you press Save lyrics.</value><comment>Confirm before lrc.red's model replaces a review or typed lyrics ({0} = song title)</comment></data>
+  <data name="LyricsStudio.LrcRedSyncWorking" xml:space="preserve"><value>lrc.red's model is timing every word…</value><comment>Song status and button label while lrc.red's model runs</comment></data>
+  <data name="LyricsStudio.LrcRedSynced" xml:space="preserve"><value>Word-synced by lrc.red's model · review</value><comment>Song status after lrc.red's model word-synced it</comment></data>
+  <data name="LyricsStudio.LrcRedSource" xml:space="preserve"><value>From lrc.red · word-synced by its model</value><comment>Review source line for lyrics lrc.red's model word-synced</comment></data>
   <data name="LyricsStudio.ReviewHint" xml:space="preserve"><value>Click a time to hear that line. Edit text in place. Tinted lines need a second look.</value><comment>Review pane hint</comment></data>
   <data name="LyricsStudio.NudgeEarlier" xml:space="preserve"><value>All lines 0.1 s earlier · shortcut [</value><comment>Tooltip</comment></data>
   <data name="LyricsStudio.NudgeLater" xml:space="preserve"><value>All lines 0.1 s later · shortcut ]</value><comment>Tooltip</comment></data>

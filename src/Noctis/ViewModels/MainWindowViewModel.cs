@@ -613,7 +613,11 @@ public partial class MainWindowViewModel : ViewModelBase
             && App.Services.GetService<IYouTubeMusicLyricsService>() is { } youTubeMusic
             && App.Services.GetService<ILrcRedLyricsService>() is { } lrcRed
             && App.Services.GetService<IUnisonLyricsService>() is { } unison)
+        {
             _lyricsVm.ExtraLyricsSources = Services.Lyrics.OnlineLyricsSource.BuiltIns(musixmatch, kugou, youTubeMusic, lrcRed, unison);
+            // "Word-sync with lrc.red's model" on the lyrics page and in Search Lyrics.
+            _lyricsVm.LrcRed = lrcRed;
+        }
         _lyricsVm.ShowLyricsSearchDialog = MetadataHelper.OpenLyricsSearchDialog;
         // Lyrics saved inside audio files (GitHub #135) wait until the song is not playing.
         _lyricsVm.TagWriter = App.Services?.GetService<IDeferredTagWriter>();
@@ -2256,6 +2260,11 @@ public partial class MainWindowViewModel : ViewModelBase
                 _ => _homeVm
             };
         }
+
+        // Shortcuts (Ctrl/⌘+1…4) and the command palette navigate here without touching the
+        // sidebar, which kept highlighting the section you came from. Sidebar clicks already
+        // selected this item; keys without a sidebar row leave the highlight alone.
+        HighlightSidebarSection(key);
 
         if (previousEntry != null && !ReferenceEquals(CurrentView, previousEntry.View))
         {

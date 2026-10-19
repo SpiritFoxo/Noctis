@@ -42,6 +42,13 @@ public class LrcLibResult
     [JsonPropertyName("hasWordSync")]
     public bool? HasWordSync { get; set; }
 
+    /// <summary>
+    /// The recording's ISRC when the source names it (lrc.red): the key its in-house model
+    /// word-syncs a song by. Not part of LRCLIB's answer; null elsewhere.
+    /// </summary>
+    [JsonIgnore]
+    public string? Isrc { get; set; }
+
     public bool HasSyncedLyrics => !string.IsNullOrWhiteSpace(SyncedLyrics);
     public bool HasLyricsfile => !string.IsNullOrWhiteSpace(Lyricsfile);
 

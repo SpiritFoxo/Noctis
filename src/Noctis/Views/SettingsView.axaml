@@ -1489,6 +1489,11 @@
         <Style Selector="Border.setting-row:nth-child(1)">
             <Setter Property="BorderThickness" Value="0"/>
         </Style>
+        <!-- First row the page shows when the rows above it are platform-gated off
+             (nth-child counts hidden siblings, so it drew a stray top hairline on macOS/Linux). -->
+        <Style Selector="Border.setting-row.first">
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
         <Style Selector="Border.setting-row.divided">
             <Setter Property="BorderThickness" Value="0,1,0,0"/>
         </Style>
@@ -1814,7 +1819,7 @@
                                FontSize="12" Opacity="0.7" TextWrapping="Wrap"/>
                 </StackPanel>
             </Border>
-            <Border Classes="setting-row">
+            <Border Classes="setting-row" Classes.first="{Binding !IsFileAssociationSupported}">
                 <StackPanel Spacing="10">
                     <StackPanel Spacing="2">
                         <TextBlock Text="{loc:T Settings.OpenFile}" FontSize="13" FontWeight="SemiBold"/>
@@ -2562,7 +2567,8 @@
             </StackPanel>
             </Border>
 
-            <Border Classes="setting-card group-card" Margin="0,14,0,10">
+            <!-- Both rows are Windows-only; gate the card too, or macOS/Linux showed an empty box. -->
+            <Border Classes="setting-card group-card" Margin="0,14,0,10" IsVisible="{Binding IsTaskbarProgressSupported}">
             <StackPanel>
             <Border Classes="setting-row" IsVisible="{Binding IsTaskbarProgressSupported}">
                 <Grid ColumnDefinitions="*,Auto">
@@ -3350,7 +3356,9 @@
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" VerticalAlignment="Center">
                             <TextBlock Text="{loc:T Settings.LrcRed}" FontSize="13" FontWeight="SemiBold"/>
-                            <TextBlock Text="{loc:T Settings.LrcRedHint}" FontSize="11" Opacity="0.5"/>
+                            <!-- Wraps: it also says the model can word-sync from the lyrics page. -->
+                            <TextBlock Text="{loc:T Settings.LrcRedHint}" FontSize="11" Opacity="0.5"
+                                       TextWrapping="Wrap" Margin="0,0,12,0"/>
                         </StackPanel>
                         <controls:LottieToggle Grid.Column="1"
                                               AutomationProperties.Name="{loc:T Settings.LrcRed}"
@@ -3503,9 +3511,14 @@
                                                             ToolTip.Tip="{loc:T Settings.ResetDefaultTip}"
                                                             IsVisible="{Binding !IsDefault}"
                                                             Command="{Binding ResetCommand}">
-                                                        <PathIcon Data="M 12.5 8 A 4.5 4.5 0 1 1 11.2 4.8 M 11.5 2 L 11.5 5 L 8.5 5"
-                                                                  Width="13" Height="13"
-                                                                  Opacity="0.7"/>
+                                                        <!-- Stroked like the Plugins refresh button: an open arc in a
+                                                             PathIcon is filled, which drew a solid blob. -->
+                                                        <Viewbox Width="13" Height="13" Opacity="0.7">
+                                                            <Canvas Width="24" Height="24">
+                                                                <Path Data="{StaticResource PluginsRefreshGlyph}" Stroke="{Binding $parent[Button].Foreground}"
+                                                                      StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"/>
+                                                            </Canvas>
+                                                        </Viewbox>
                                                     </Button>
                                                 </Grid>
                                             </DataTemplate>
@@ -3810,7 +3823,7 @@
                                           VerticalAlignment="Center"/>
                 </Grid>
             </Border>
-            <Border Classes="setting-row">
+            <Border Classes="setting-row" Classes.first="{Binding !IsExclusiveAudioSupported}">
                 <StackPanel Spacing="10">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="2">

@@ -94,7 +94,7 @@
                      TextBlock had (WordOverflowPaddingConverter). -->
                 <controls:KaraokeWordText Text="{Binding Text}"
                                           Classes="word-sweep"
-                                          Padding="{Binding Text, Converter={StaticResource WordOverflowPad}}"
+                                          Padding="{Binding Converter={StaticResource WordOverflowPad}}"
                                           FontWeight="Bold"
                                           Foreground="{Binding $parent[UserControl].((vm:LyricsViewModel)DataContext).LyricsPrimaryFg}"
                                           Progress="{Binding Progress}"
@@ -181,6 +181,11 @@
         </Style>
         <Style Selector="Button.pill-btn:pointerover">
             <Setter Property="Background" Value="{DynamicResource LyricsBtnBgHoverRes}"/>
+        </Style>
+        <!-- The lrc.red sync pill is disabled while its model runs: it keeps its look and only
+             its label changes ("Timing every word…"), instead of Fluent's grey disabled box. -->
+        <Style Selector="Button.lrcred-sync:disabled /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource LyricsBtnBgRes}"/>
         </Style>
 
         <!-- Color picker circle button -->
@@ -843,6 +848,30 @@
                         </StackPanel>
                     </Button>
 
+                    <!-- lrc.red has this song only line-synced or plain: its in-house model can time
+                         every word. One request per press; reads "Timing every word…" while it runs
+                         and "Try again" after a failure (the reason beside it). -->
+                    <Button Classes="pill-btn lrcred-sync"
+                            Padding="10,5"
+                            Height="30" MinHeight="30"
+                            IsVisible="{Binding ShowLrcRedSync}"
+                            Command="{Binding WordSyncWithLrcRedCommand}"
+                            AutomationProperties.Name="{Binding LrcRedSyncLabel}">
+                        <StackPanel Orientation="Horizontal" Spacing="5">
+                            <controls:LineIcon Data="{DynamicResource MenuLineTimer}"
+                                               Width="13" Height="13" Foreground="{Binding LyricsPrimaryFg}"
+                                               VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding LrcRedSyncLabel}" FontSize="11" Foreground="{Binding LyricsPrimaryFg}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <TextBlock Text="{Binding LrcRedSyncError}"
+                               FontSize="11"
+                               MaxWidth="260"
+                               TextWrapping="Wrap"
+                               Foreground="{Binding LyricsSubtleFg}"
+                               VerticalAlignment="Center"
+                               IsVisible="{Binding LrcRedSyncError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
                     <!-- Lyrics Studio preview: the lines shown are unsaved -->
                     <Border Background="{DynamicResource LyricsBtnBgRes}"
                             CornerRadius="18"
@@ -858,6 +887,14 @@
                                Foreground="{Binding LyricsSubtleFg}"
                                VerticalAlignment="Center"
                                IsVisible="{Binding SaveStatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+                    <!-- lrc.red's API asks to be credited: "Lyrics from lrc.red" under its lyrics,
+                         "Word-synced by lrc.red's model" after its model timed them. -->
+                    <TextBlock Text="{Binding LyricsCreditText}"
+                               FontSize="11"
+                               Foreground="{Binding LyricsSubtleFg}"
+                               VerticalAlignment="Center"
+                               IsVisible="{Binding LyricsCreditText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                 </StackPanel>
             </StackPanel>
         </Border>

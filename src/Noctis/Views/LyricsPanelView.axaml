@@ -79,7 +79,7 @@
                 </Canvas>
                 <controls:KaraokeWordText Text="{Binding Text}"
                                           Classes="word-sweep"
-                                          Padding="{Binding Text, Converter={StaticResource WordOverflowPad}}"
+                                          Padding="{Binding Converter={StaticResource WordOverflowPad}}"
                                           FontWeight="Bold"
                                           Foreground="{Binding $parent[UserControl].((vm:LyricsViewModel)DataContext).LyricsPrimaryFg}"
                                           Progress="{Binding Progress}"

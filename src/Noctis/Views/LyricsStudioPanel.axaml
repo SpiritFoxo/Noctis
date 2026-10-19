@@ -442,7 +442,7 @@
                 <TextBlock Text="{loc:T LyricsStudio.Subtitle}" FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
             </StackPanel>
             <Button Grid.Column="1" Classes="dialog-close" Command="{Binding CloseCommand}"
-                    ToolTip.Tip="{loc:T Settings.CloseTip}" VerticalAlignment="Top" Margin="12,0,0,0">
+                    ToolTip.Tip="{loc:T Common.Close}" VerticalAlignment="Top" Margin="12,0,0,0">
                 <controls:LineIcon Data="{StaticResource MenuLineClose}" Width="24" Height="24" Margin="-6" StrokeThickness="1.75" />
             </Button>
         </Grid>
@@ -738,10 +738,18 @@
                                     IsEnabled="{Binding !IsRunning}" ToolTip.Tip="{loc:T LyricsStudio.ImportFileTip}">
                                 <TextBlock Text="{loc:T LyricsStudio.ImportFile}" />
                             </Button>
-                            <Button Grid.Column="1" Classes="studio-btn pill-outline" Command="{Binding TranscribeDraftCommand}"
-                                    IsEnabled="{Binding CanTranscribeDraft}" ToolTip.Tip="{loc:T LyricsStudio.TranscribeDraftTip}">
-                                <TextBlock Text="{loc:T LyricsStudio.TranscribeDraft}" />
-                            </Button>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                <Button Classes="studio-btn pill-outline" Command="{Binding TranscribeDraftCommand}"
+                                        IsEnabled="{Binding CanTranscribeDraft}" ToolTip.Tip="{loc:T LyricsStudio.TranscribeDraftTip}">
+                                    <TextBlock Text="{loc:T LyricsStudio.TranscribeDraft}" />
+                                </Button>
+                                <!-- No timed lyrics here, but lrc.red has the song: its model brings lyrics and word timings. -->
+                                <Button Classes="studio-btn pill-outline studio-lrcred" Command="{Binding SyncWithLrcRedCommand}"
+                                        IsVisible="{Binding ShowLrcRedSync}" ToolTip.Tip="{loc:T LyricsStudio.LrcRedSyncTip}"
+                                        AutomationProperties.Name="{Binding LrcRedSyncLabel}">
+                                    <TextBlock Text="{Binding LrcRedSyncLabel}" />
+                                </Button>
+                            </StackPanel>
                             <TextBlock Grid.Column="2" Text="{Binding Selected.StatusText}" FontSize="11.5" Opacity="0.6" Margin="6,0"
                                        VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Selected.StatusText}" />
                             <Button Grid.Column="3" Classes="studio-btn accent-btn" Command="{Binding AlignDraftCommand}"
@@ -767,6 +775,12 @@
                                     <Button Command="{Binding UpgradeToWordTimingsCommand}" IsVisible="{Binding ReviewCanUpgrade}"
                                             Classes="studio-btn pill-outline" ToolTip.Tip="{loc:T LyricsStudio.UpgradeTip}">
                                         <TextBlock Text="{loc:T LyricsStudio.Upgrade}" />
+                                    </Button>
+                                    <!-- lrc.red's in-house model: word timings in seconds, with lrc.red's own lyrics (10-19). -->
+                                    <Button Command="{Binding SyncWithLrcRedCommand}" IsVisible="{Binding ShowLrcRedSync}"
+                                            Classes="studio-btn pill-outline studio-lrcred" ToolTip.Tip="{loc:T LyricsStudio.LrcRedSyncTip}"
+                                            AutomationProperties.Name="{Binding LrcRedSyncLabel}">
+                                        <TextBlock Text="{Binding LrcRedSyncLabel}" />
                                     </Button>
                                     <!-- Shows or hides the live preview pane beside the editor (10-14); the dot = open. -->
                                     <Button Command="{Binding ToggleLivePreviewCommand}" IsVisible="{Binding CanLivePreview}"

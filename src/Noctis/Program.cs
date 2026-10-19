@@ -358,7 +358,9 @@ internal class Program
         services.AddSingleton<INetEaseService, NetEaseService>();
         services.AddSingleton<IMusixmatchService, MusixmatchService>();
         services.AddSingleton<IKugouLyricsService, KugouLyricsService>();
-        services.AddSingleton<ILrcRedLyricsService, LrcRedLyricsService>();
+        // The model sync gets a client of its own: the shared one gives up after 15 s.
+        services.AddSingleton<ILrcRedLyricsService>(sp =>
+            new LrcRedLyricsService(sp.GetRequiredService<HttpClient>(), LrcRedLyricsService.CreateModelHttpClient()));
         services.AddSingleton<IUnisonLyricsService, UnisonLyricsService>();
         services.AddSingleton<IYouTubeMusicLyricsService, YouTubeMusicLyricsService>();
         services.AddSingleton<IPlayHistoryService, PlayHistoryService>();

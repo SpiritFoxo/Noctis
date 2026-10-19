@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Noctis.Models;
 
 namespace Noctis.Services;
@@ -9,7 +10,7 @@ namespace Noctis.Services;
 /// top match and get persisted to a sidecar. Candidates must now match the local
 /// track (duration + names) before any format preference applies.
 /// </summary>
-public static class LyricsSearchSelector
+public static partial class LyricsSearchSelector
 {
     /// <summary>Max allowed |candidate − local| duration difference, in seconds.</summary>
     public const double DurationToleranceSeconds = 5.0;
@@ -34,11 +35,30 @@ public static class LyricsSearchSelector
         if (!NamesMatch(candidate.TrackName, title))
             return false;
 
-        if (!IsUnknownArtist(artist) && !NamesMatch(candidate.ArtistName, artist))
+        if (!IsUnknownArtist(artist) && !NamesMatch(candidate.ArtistName, artist) && !ShareAnArtist(candidate.ArtistName, artist))
             return false;
 
         return true;
     }
+
+    /// <summary>
+    /// Two credits naming one of the same artists, each split on the usual joins (", " "&amp;" ";"
+    /// "/" "feat."): lrc.red's "Lady Gaga, Bruno Mars" is a library's "Lady Gaga &amp; Bruno Mars".
+    /// Containment alone missed every duet credited with another separator. Whole names only —
+    /// "Bruno Major" is not "Bruno Mars".
+    /// </summary>
+    private static bool ShareAnArtist(string? candidate, string? local)
+    {
+        var mine = SplitCredit(local);
+        return mine.Length > 0 && SplitCredit(candidate).Any(c => mine.Contains(c, StringComparer.OrdinalIgnoreCase));
+    }
+
+    private static string[] SplitCredit(string? credit) => string.IsNullOrWhiteSpace(credit)
+        ? Array.Empty<string>()
+        : CreditJoins().Split(credit).Select(a => a.Trim()).Where(a => a.Length > 1).ToArray();
+
+    [GeneratedRegex(@"\s*(?:,|&|;|/|\+|\bfeat\b\.?|\bft\.|\bfeaturing\b)\s*", RegexOptions.IgnoreCase)]
+    private static partial Regex CreditJoins();
 
     /// <summary>
     /// Picks the best candidate that validates against the local track, skipping

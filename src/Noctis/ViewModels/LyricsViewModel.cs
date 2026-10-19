@@ -1210,6 +1210,8 @@ public partial class LyricsViewModel : ViewModelBase, IDisposable
         LyricsSourceName = string.Empty;
         _alternateOnlineResult = null;
         _alternateSource = null;
+        _lrcRedTarget = null;
+        RefreshLrcRedOffer();
 
         try
         {
@@ -1410,6 +1412,12 @@ public partial class LyricsViewModel : ViewModelBase, IDisposable
                     HasAlternateLyrics = true;
                     AlternateLyricsLabel = $"Try {altSource}";
                 }
+
+                // lrc.red (searched, so on in Settings) has the song only line-synced or plain:
+                // its model can word-sync it from the page.
+                var lrcRedAt = extraSources.FindIndex(s => s.Name == Services.Lyrics.OnlineLyricsSource.LrcRed);
+                if (lrcRedAt >= 0 && extraTasks[lrcRedAt].IsCompleted)
+                    OfferLrcRedSync(track, extraResults[lrcRedAt]);
             }
             else
             {
@@ -1492,6 +1500,7 @@ public partial class LyricsViewModel : ViewModelBase, IDisposable
                 : null,
             Lyricsfile = null,
             HasWordSync = false,
+            Isrc = result.Isrc,
         };
     }
 
@@ -1640,7 +1649,20 @@ public partial class LyricsViewModel : ViewModelBase, IDisposable
         AllSourceNames(),
         async () => AutoSourceNames(await _persistence.LoadSettingsAsync()),
         (sources, artist, title, ct) => SearchSourcesAsync(sources, artist, title, track.Duration.TotalSeconds, track.Album ?? "", ct),
-        (result, source) => ApplySearchedLyrics(track, result, source));
+        (result, source) => ApplySearchedLyrics(track, result, source))
+    {
+        // lrc.red's row offers its model only while lrc.red is on in Settings. Its answer, once
+        // used, is credited on the page as the model's.
+        SyncWithLrcRedModel = LrcRed is { } lrcRed
+            ? async (isrc, ct) =>
+            {
+                var synced = await lrcRed.SyncWithModelAsync(isrc, ct);
+                _lrcRedModelResult = synced;
+                return synced;
+            }
+            : null,
+        CanOfferLrcRedModel = async () => LrcRed != null && await LrcRedModelAllowedAsync(),
+    };
 
     private IReadOnlyList<Services.Plugins.PluginLyricsSource> CurrentPluginSources()
     {
@@ -1703,7 +1725,8 @@ public partial class LyricsViewModel : ViewModelBase, IDisposable
             catch (Exception ex)
             {
                 DebugLogger.Warn(DebugLogger.Category.Lyrics, "SourceSearch:Error", $"{name}: {ex.Message}");
-                return new Services.Lyrics.LyricsSourceHit(name, null, Errored: true);
+                return new Services.Lyrics.LyricsSourceHit(name, null, Errored: true,
+                    Busy: ex is LyricsProviderException { IsBusy: true });
             }
         }
     }
@@ -1736,7 +1759,200 @@ public partial class LyricsViewModel : ViewModelBase, IDisposable
         _alternateSource = null;
         HasAlternateLyrics = false;
         AlternateLyricsLabel = string.Empty;
+        // lrc.red's line-synced or plain pick: its model can word-sync it from the page.
+        _lrcRedTarget = null;
+        if (source == Services.Lyrics.OnlineLyricsSource.LrcRed)
+            _ = OfferLrcRedSyncAsync(track, result);
+        RefreshLrcRedOffer();
+        RefreshLyricsCredit(); // lrc.red to lrc.red (its model's answer) leaves the name as it was
     }
+
+    // ── Word-sync with lrc.red's model ──
+    //
+    // lrc.red can time every word of songs it has only line-synced or plain with its in-house
+    // model (LrcRedLyricsService.SyncWithModelAsync). It is donation-funded and asks for credit,
+    // so the model runs only on a press of the page's pill (or lrc.red's row in Search Lyrics),
+    // one request per press, while lrc.red is on in Settings; a song change cancels it.
+
+    /// <summary>lrc.red, for its model sync; set by MainWindowViewModel. Null: never offered.</summary>
+    internal ILrcRedLyricsService? LrcRed { get; set; }
+
+    /// <summary>The lrc.red recording of the lyrics on the page that its model can word-sync.</summary>
+    private (Guid TrackId, string Isrc)? _lrcRedTarget;
+    private CancellationTokenSource? _lrcRedSyncCts;
+    private Guid? _lrcRedSyncTrackId;
+    /// <summary>The model's answer, while it is on the page: credited as the model's.</summary>
+    private LrcLibResult? _lrcRedModelResult;
+
+    /// <summary>The pill shows: the page's lyrics are lrc.red-matched and not word-synced, or a sync is running.</summary>
+    [ObservableProperty] private bool _showLrcRedSync;
+    [ObservableProperty] private bool _isLrcRedSyncing;
+    /// <summary>"Word-sync with lrc.red's model", "Timing every word… a few seconds", or "Try again" after a failure.</summary>
+    [ObservableProperty] private string _lrcRedSyncLabel = string.Empty;
+    /// <summary>Why the last sync failed, beside the pill; empty otherwise.</summary>
+    [ObservableProperty] private string _lrcRedSyncError = string.Empty;
+    /// <summary>"Lyrics from lrc.red" / "Word-synced by lrc.red's model" under lrc.red's lyrics (its API asks to be credited).</summary>
+    [ObservableProperty] private string _lyricsCreditText = string.Empty;
+
+    partial void OnLyricsSourceNameChanged(string value) => RefreshLyricsCredit();
+
+    private void RefreshLyricsCredit() =>
+        LyricsCreditText = LyricsSourceName != Services.Lyrics.OnlineLyricsSource.LrcRed ? string.Empty
+            : Localization.Loc.T(_lrcRedModelResult != null && ReferenceEquals(_currentOnlineResult, _lrcRedModelResult)
+                ? "Lyrics.LrcRedModelCredit" : "Lyrics.LrcRedCredit");
+
+    /// <summary>The model is offered while lrc.red is on in Settings and the preferred lyrics type keeps word timings.</summary>
+    private async Task<bool> LrcRedModelAllowedAsync()
+    {
+        if (LyricsSaveOptions.ParsePreferredType(_player.LyricsPreferredType) != LyricsPreferredType.WordSynced) return false;
+        try { return (await _persistence.LoadSettingsAsync()).LrcRedEnabled; }
+        catch { return false; }
+    }
+
+    /// <summary>
+    /// Remembers lrc.red's answer for the track on the page when its model could word-sync it:
+    /// lrc.red has lyrics for the recording (an ISRC), only line-synced or plain. The caller has
+    /// checked that lrc.red is on.
+    /// </summary>
+    private void OfferLrcRedSync(Track track, LrcLibResult? lrcRed)
+    {
+        if (LrcRed == null || lrcRed is not { HasLyrics: true, Isrc: { Length: > 0 } isrc }
+            || LyricsSearchSelector.FormatRank(lrcRed) >= LyricsSearchSelector.WordSyncedRank
+            || LyricsSaveOptions.ParsePreferredType(_player.LyricsPreferredType) != LyricsPreferredType.WordSynced
+            || _currentTrack?.Id != track.Id)
+            return;
+        _lrcRedTarget = (track.Id, isrc);
+        RefreshLrcRedOffer();
+    }
+
+    private async Task OfferLrcRedSyncAsync(Track track, LrcLibResult lrcRed)
+    {
+        if (LrcRed == null || lrcRed.Isrc == null || !await LrcRedModelAllowedAsync()) return;
+        OfferLrcRedSync(track, lrcRed);
+    }
+
+    private void RefreshLrcRedOffer()
+    {
+        var shownRank = LyricsSearchSelector.FormatRank(_currentOnlineResult);
+        var offered = LrcRed != null && _lrcRedTarget is { } target && _currentTrack?.Id == target.TrackId && !IsPreviewActive
+                      && shownRank is > 0 and < LyricsSearchSelector.WordSyncedRank;
+        ShowLrcRedSync = offered || IsLrcRedSyncing;
+        LrcRedSyncLabel = Localization.Loc.T(IsLrcRedSyncing ? "Lyrics.LrcRedSyncWorking"
+            : LrcRedSyncError.Length > 0 ? "Lyrics.LrcRedSyncRetry" : "Lyrics.LrcRedSync");
+        if (!ShowLrcRedSync) LrcRedSyncError = string.Empty;
+    }
+
+    /// <summary>Drops the offer; <paramref name="cancel"/> also stops a sync in flight.</summary>
+    private void ResetLrcRedSync(bool cancel)
+    {
+        if (cancel && _lrcRedSyncCts is { } running)
+        {
+            running.Cancel();
+            _lrcRedSyncCts = null;
+            _lrcRedSyncTrackId = null;
+            IsLrcRedSyncing = false;
+        }
+        _lrcRedTarget = null;
+        LrcRedSyncError = string.Empty;
+        RefreshLrcRedOffer();
+    }
+
+    /// <summary>
+    /// The pill's press: one POST to lrc.red's model for the recording on the page. On success the
+    /// page switches to the word-synced lyrics and keeps them as any picked online lyrics are kept
+    /// (cache, and the sidecar or tags per Settings ▸ Lyrics ▸ Save lyrics to); on failure it says
+    /// why and the pill reads Try again — nothing is retried on its own.
+    /// </summary>
+    [RelayCommand]
+    private async Task WordSyncWithLrcRed()
+    {
+        if (IsLrcRedSyncing || LrcRed is not { } lrcRed || _lrcRedTarget is not { } target
+            || _currentTrack is not { } track || track.Id != target.TrackId)
+            return;
+        // Settings are read at the press too: the model only runs while lrc.red is on.
+        if (!await LrcRedModelAllowedAsync())
+        {
+            ResetLrcRedSync(cancel: false);
+            return;
+        }
+        if (_currentTrack?.Id != track.Id || IsLrcRedSyncing) return;
+
+        var cts = new CancellationTokenSource();
+        _lrcRedSyncCts = cts;
+        _lrcRedSyncTrackId = track.Id;
+        IsLrcRedSyncing = true;
+        LrcRedSyncError = string.Empty;
+        RefreshLrcRedOffer();
+        DebugLogger.Info(DebugLogger.Category.Lyrics, "LrcRed.ModelSync", $"isrc={target.Isrc}, title={track.Title}");
+        try
+        {
+            var result = await lrcRed.SyncWithModelAsync(target.Isrc, cts.Token);
+            if (cts.IsCancellationRequested || _currentTrack?.Id != track.Id) return;
+            DebugLogger.Info(DebugLogger.Category.Lyrics, "LrcRed.ModelSynced", $"isrc={target.Isrc}");
+
+            // The lyrics shown before stay one tap away, unless they were lrc.red's own line timing.
+            var previous = _currentOnlineResult;
+            var previousSource = LyricsSourceName;
+            ++_searchGeneration; // an automatic search still in flight must not land over these
+            IsSearching = false;
+            SearchFailedMessage = string.Empty;
+            _lrcRedModelResult = result;
+            // Done for this song: switching back to the line-synced lyrics offers no second run.
+            _lrcRedTarget = null;
+            DisplayOnlineLyrics(result, userSwitchedSource: true);
+            LyricsSourceName = Services.Lyrics.OnlineLyricsSource.LrcRed;
+            if (previous is { HasLyrics: true } && previousSource.Length > 0 && previousSource != Services.Lyrics.OnlineLyricsSource.LrcRed)
+            {
+                _alternateOnlineResult = previous;
+                _alternateSource = previousSource;
+                HasAlternateLyrics = true;
+                AlternateLyricsLabel = $"Try {previousSource}";
+            }
+            else if (_alternateSource == Services.Lyrics.OnlineLyricsSource.LrcRed)
+            {
+                _alternateOnlineResult = null;
+                _alternateSource = null;
+                HasAlternateLyrics = false;
+                AlternateLyricsLabel = string.Empty;
+            }
+            RefreshLyricsCredit();
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+            // The song changed: nothing to say.
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Warn(DebugLogger.Category.Lyrics, "LrcRed.ModelSyncFailed", ex.Message);
+            if (!cts.IsCancellationRequested && _currentTrack?.Id == track.Id)
+                LrcRedSyncError = LrcRedSyncMessage(ex);
+        }
+        finally
+        {
+            if (ReferenceEquals(_lrcRedSyncCts, cts))
+            {
+                _lrcRedSyncCts = null;
+                _lrcRedSyncTrackId = null;
+                IsLrcRedSyncing = false;
+                RefreshLrcRedOffer();
+            }
+            cts.Dispose();
+        }
+    }
+
+    /// <summary>A failed model sync in words, for the page, Search Lyrics and Lyrics Studio.</summary>
+    internal static string LrcRedSyncMessage(Exception ex) => ex is not LrcRedSyncException sync
+        ? Localization.Loc.T("Lyrics.LrcRedSyncBadAnswer")
+        : sync.Failure switch
+        {
+            LrcRedSyncFailure.Network => Localization.Loc.T("Lyrics.LrcRedSyncNetwork"),
+            LrcRedSyncFailure.Timeout => Localization.Loc.T("Lyrics.LrcRedSyncTimeout"),
+            LrcRedSyncFailure.RateLimited => Localization.Loc.T("Lyrics.LrcRedSyncBusy"),
+            LrcRedSyncFailure.NotWordSynced => Localization.Loc.T("Lyrics.LrcRedSyncNoWords"),
+            LrcRedSyncFailure.Refused when sync.ServerMessage is { Length: > 0 } said => Localization.Loc.T("Lyrics.LrcRedSyncRefused", said),
+            LrcRedSyncFailure.Refused => Localization.Loc.T("Lyrics.LrcRedSyncStatus", sync.StatusCode?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "?"),
+            _ => Localization.Loc.T("Lyrics.LrcRedSyncBadAnswer"),
+        };
 
     /// <summary>Asks before Save replaces the song's lyrics files; the message names them. Tests swap it.</summary>
     internal Func<string, Task<bool>> ConfirmReplaceLyrics { get; set; } = Views.ConfirmationDialog.ShowAsync;
@@ -1853,7 +2069,9 @@ public partial class LyricsViewModel : ViewModelBase, IDisposable
             });
             if (changed.Count > 0)
             {
-                var message = Localization.Loc.T(changed.Count == 1 ? "Lyrics.SaveReplaceOne" : "Lyrics.SaveReplaceMany",
+                // macOS/Linux variants say "Trash": there is no Recycle Bin there.
+                var trash = OperatingSystem.IsWindows() ? "" : "Trash";
+                var message = Localization.Loc.T((changed.Count == 1 ? "Lyrics.SaveReplaceOne" : "Lyrics.SaveReplaceMany") + trash,
                     track.Title, string.Join(Localization.Loc.T("Lyrics.SaveFilesJoin"), changed));
                 bool confirmed;
                 try { confirmed = await ConfirmReplaceLyrics(message); } catch { confirmed = false; }
@@ -1877,7 +2095,7 @@ public partial class LyricsViewModel : ViewModelBase, IDisposable
             if (ReferenceEquals(_currentTrack, track))
                 LoadLyricsForTrack(track);
             ShowStatusText(
-                outcome.KeptForeignSidecar ? Localization.Loc.T("Lyrics.SaveKeptOld")
+                outcome.KeptForeignSidecar ? Localization.Loc.T(OperatingSystem.IsWindows() ? "Lyrics.SaveKeptOld" : "Lyrics.SaveKeptOldTrash")
                 : outcome.Saved ? Localization.Loc.T("Lyrics.Saved")
                 : Localization.Loc.T("Lyrics.SaveFailed"),
                 outcome.Saved && !outcome.KeptForeignSidecar ? 3000 : 5000);
@@ -2250,6 +2468,8 @@ public partial class LyricsViewModel : ViewModelBase, IDisposable
         _currentOnlineResult = null;
         _alternateOnlineResult = null;
         _alternateSource = null;
+        _lrcRedModelResult = null;
+        ResetLrcRedSync(cancel: true);
         _timeline.Reset();
         _hasSyncedLyrics = false;
         IsSynced = false;
@@ -2518,6 +2738,7 @@ public partial class LyricsViewModel : ViewModelBase, IDisposable
         // without requiring a separate "Save to File" click. An explicit source
         // switch may replace an app-written sidecar so the choice sticks.
         PersistOnlineLyricsToSidecar(result, allowReplaceAppSidecar: userSwitchedSource);
+        RefreshLrcRedOffer();
 
         // Start sync timer if synced lyrics and playing
         if (_hasSyncedLyrics && IsSyncTabSelected && _player.State == Models.PlaybackState.Playing)
@@ -2531,6 +2752,8 @@ public partial class LyricsViewModel : ViewModelBase, IDisposable
         _currentOnlineResult = null;
         _alternateOnlineResult = null;
         _alternateSource = null;
+        _lrcRedModelResult = null;
+        ResetLrcRedSync(cancel: true);
         _timeline.Reset();
         _hasSyncedLyrics = false;
         IsSynced = false;
@@ -2810,10 +3033,13 @@ public partial class LyricsViewModel : ViewModelBase, IDisposable
     private void LoadLyricsForTrack(Track track)
     {
         DebugLogger.Info(DebugLogger.Category.Lyrics, "LoadLyricsForTrack", $"title={track.Title}, id={track.Id}");
+        // A model sync for another song stops; one for this song (a reload) may still land.
+        ResetLrcRedSync(cancel: _lrcRedSyncTrackId is { } syncing && syncing != track.Id);
         _currentTrack = track;
         _currentOnlineResult = null;
         _alternateOnlineResult = null;
         _alternateSource = null;
+        _lrcRedModelResult = null;
         ShowSearchButton = false;
         SearchFailedMessage = string.Empty;
         IsSearching = false;

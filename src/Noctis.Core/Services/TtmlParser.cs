@@ -19,7 +19,8 @@ namespace Noctis.Services;
 /// Untimed wrapper spans (e.g. Apple background vocals, ttm:role="x-bg") are
 /// recursed into so their timed descendants still contribute.
 /// Apple's translation and romanization layers (&lt;iTunesMetadata&gt; in the head,
-/// keyed by each &lt;p&gt;'s itunes:key) attach to their lines — issue #78.
+/// keyed by each &lt;p&gt;'s itunes:key) attach to their lines — issue #78 — as do lrc.red's
+/// copies of them (&lt;sourceMetadata&gt;, keyed by lrc:key).
 /// Inline translation (<c>x-translation</c>) and romanization (<c>x-roman</c>) spans
 /// become the same layers instead of words; an inline layer wins over the head's.
 /// </summary>
@@ -380,7 +381,9 @@ public static class TtmlParser
 
     /// <summary>
     /// Maps one Apple layer's &lt;text for="L#"&gt; entries by key. The layer elements
-    /// (&lt;translation&gt; / &lt;transliteration&gt;) sit under &lt;iTunesMetadata&gt;;
+    /// (&lt;translation&gt; / &lt;transliteration&gt;) sit under &lt;iTunesMetadata&gt;, or
+    /// under &lt;sourceMetadata&gt; in lrc.red's copy of Apple's TTML (only iTunesMetadata was
+    /// read, so lrc.red's translations and romaji never showed);
     /// with several languages the one matching <paramref name="preferredLanguage"/>'s
     /// primary subtag is used, else the first in the file. Empty when there is none.
     /// </summary>
@@ -389,7 +392,7 @@ public static class TtmlParser
     {
         var entries = new Dictionary<string, XElement>(StringComparer.Ordinal);
         var layers = root.Descendants()
-            .Where(e => LocalNameIs(e, "iTunesMetadata"))
+            .Where(e => LocalNameIs(e, "iTunesMetadata") || LocalNameIs(e, "sourceMetadata"))
             .SelectMany(m => m.Descendants().Where(e => LocalNameIs(e, layerName)))
             .ToList();
         if (layers.Count == 0) return entries;

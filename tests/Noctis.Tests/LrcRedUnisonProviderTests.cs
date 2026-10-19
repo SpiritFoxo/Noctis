@@ -124,6 +124,26 @@ public class LrcRedUnisonProviderTests
         Assert.Null(LrcRedLyricsService.PickSong(spoofed, "Coldplay", "Paradise", 279));
     }
 
+    [Theory]
+    [InlineData("Lady Gaga & Bruno Mars")]
+    [InlineData("Bruno Mars; Lady Gaga")]
+    [InlineData("Lady Gaga feat. Bruno Mars")]
+    [InlineData("Lady Gaga/Bruno Mars")]
+    public void LrcRed_PickSong_DuetCreditedWithAnotherSeparator_IsTheSameSong(string localArtist)
+    {
+        // lrc.red writes "Lady Gaga, Bruno Mars"; a library tag joins the same two singers its own
+        // way. Containment either way failed, so the duet had no lrc.red lyrics at all.
+        var song = LrcRedLyricsService.PickSong(LrcRedLookup, localArtist, "Die With A Smile", 251.693);
+        Assert.Equal("USUM72409273", song?.Isrc);
+    }
+
+    [Fact]
+    public void LrcRed_PickSong_AnotherArtistSharingNoSinger_IsStillAMiss()
+    {
+        Assert.Null(LrcRedLyricsService.PickSong(LrcRedLookup, "Bruno Major & Lady A", "Die With A Smile", 251.693));
+        Assert.Null(LrcRedLyricsService.PickSong(LrcRedLookup, "Bruno, Gaga", "Die With A Smile", 251.693));
+    }
+
     [Fact]
     public async Task LrcRed_NoMatch_IsADefinitiveMiss_AndCached()
     {

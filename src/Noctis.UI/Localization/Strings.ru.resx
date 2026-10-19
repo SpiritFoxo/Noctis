@@ -529,7 +529,7 @@ Deezer и TIDAL: вставьте ссылку.</value></data>
   <data name="Settings.Kugou" xml:space="preserve"><value>Kugou</value><comment>Text in SettingsView.axaml — lyrics provider name</comment></data>
   <data name="Settings.KugouHint" xml:space="preserve"><value>Каталог текстов с синхронизацией по словам</value><comment>Text in SettingsView.axaml</comment></data>
   <data name="Settings.LrcRed" xml:space="preserve"><value>lrc.red</value><comment>Text in SettingsView.axaml — lyrics provider name</comment></data>
-  <data name="Settings.LrcRedHint" xml:space="preserve"><value>Тексты с синхронизацией по словам и строкам, с дуэтами</value><comment>Text in SettingsView.axaml</comment></data>
+  <data name="Settings.LrcRedHint" xml:space="preserve"><value>Тексты с синхронизацией по словам и строкам, с дуэтами. Песни, где есть только синхронизация по строкам, его модель может синхронизировать по словам со страницы текста.</value><comment>Text in SettingsView.axaml</comment></data>
   <data name="Settings.Unison" xml:space="preserve"><value>Unison</value><comment>Text in SettingsView.axaml — lyrics provider name</comment></data>
   <data name="Settings.UnisonHint" xml:space="preserve"><value>Тексты сообщества Better Lyrics · Lyrics from Unison (unison.boidu.dev)</value><comment>Text in SettingsView.axaml; keep "Lyrics from Unison (unison.boidu.dev)": the attribution Unison's ODbL licence asks for</comment></data>
   <data name="Settings.YouTubeMusicLyrics" xml:space="preserve"><value>YouTube Music</value><comment>Text in SettingsView.axaml — lyrics provider name</comment></data>
@@ -1195,21 +1195,43 @@ Deezer и TIDAL: вставьте ссылку.</value></data>
   <data name="LyricsSearch.Plain" xml:space="preserve"><value>Обычный</value><comment>Result format in LyricsSearchViewModel (no timing)</comment></data>
   <data name="LyricsSearch.NoMatch" xml:space="preserve"><value>Нет совпадений</value><comment>Result in LyricsSearchViewModel</comment></data>
   <data name="LyricsSearch.CouldNotConnect" xml:space="preserve"><value>Не удалось подключиться</value><comment>Result in LyricsSearchViewModel</comment></data>
+  <data name="LyricsSearch.Busy" xml:space="preserve"><value>Занят, попробуйте чуть позже</value><comment>Result in LyricsSearchViewModel: the source answered "busy" (503/429), so the connection works</comment></data>
+  <data name="LyricsSearch.BusyStatus" xml:space="preserve"><value>{0} сейчас занят, попробуйте чуть позже.</value><comment>Status in LyricsSearchViewModel when every searched source failed and one said it is busy; {0} = source name</comment></data>
   <data name="LyricsSearch.Instrumental" xml:space="preserve"><value>Инструментал</value><comment>Result in LyricsSearchViewModel</comment></data>
+  <data name="LyricsSearch.ModelSynced" xml:space="preserve"><value>Синхронизировано по словам моделью lrc.red. Нажмите «Использовать текст», чтобы оставить его.</value><comment>Status in LyricsSearchViewModel after lrc.red's row was word-synced by its model</comment></data>
   <data name="Lyrics.WrittenBy" xml:space="preserve"><value>Авторы: </value><comment>Text in LyricsView.axaml</comment></data>
   <data name="Lyrics.Follow" xml:space="preserve"><value>Следовать</value><comment>Text in LyricsView.axaml</comment></data>
   <data name="Lyrics.PreviewUnsaved" xml:space="preserve"><value>Предпросмотр · текст не сохранён</value><comment>Text in LyricsView.axaml — Lyrics Studio preview indicator</comment></data>
   <data name="Lyrics.SaveReplaceOne" xml:space="preserve"><value>У «{0}» уже есть {1}.
 
 При сохранении он будет заменён текстом на экране. Файл текста, созданный не Noctis, сначала отправляется в корзину.</value><comment>Save Lyrics to File prompt in LyricsViewModel; {0} = song title, {1} = one quoted file name</comment></data>
+  <data name="Lyrics.SaveReplaceOneTrash" xml:space="preserve"><value>У «{0}» уже есть {1}.
+
+При сохранении он будет заменён текстом на экране. Файл текста, созданный не Noctis, сначала отправляется в корзину.</value><comment>Save Lyrics to File prompt in LyricsViewModel; {0} = song title, {1} = one quoted file name</comment></data>
   <data name="Lyrics.SaveReplaceMany" xml:space="preserve"><value>У «{0}» уже есть {1}.
+
+При сохранении они будут заменены текстом на экране. Файл текста, созданный не Noctis, сначала отправляется в корзину.</value><comment>Save Lyrics to File prompt in LyricsViewModel; {0} = song title, {1} = quoted file names joined by Lyrics.SaveFilesJoin</comment></data>
+  <data name="Lyrics.SaveReplaceManyTrash" xml:space="preserve"><value>У «{0}» уже есть {1}.
 
 При сохранении они будут заменены текстом на экране. Файл текста, созданный не Noctis, сначала отправляется в корзину.</value><comment>Save Lyrics to File prompt in LyricsViewModel; {0} = song title, {1} = quoted file names joined by Lyrics.SaveFilesJoin</comment></data>
   <data name="Lyrics.SaveFilesJoin" xml:space="preserve"><value> и </value><comment>Joins the file names in Lyrics.SaveReplaceMany (keep the spaces)</comment></data>
   <data name="Lyrics.SaveReplaceTags" xml:space="preserve"><value>текст внутри аудиофайла</value><comment>Save Lyrics to File prompt: joined into {1} of Lyrics.SaveReplaceOne/Many when the save replaces lyrics in the audio file's tags (GitHub #135)</comment></data>
   <data name="Lyrics.Saved" xml:space="preserve"><value>Текст сохранён</value><comment>Lyrics page status after Save Lyrics to File</comment></data>
   <data name="Lyrics.SaveKeptOld" xml:space="preserve"><value>Сохранено · старый файл текста остался, его не удалось переместить в корзину</value><comment>Lyrics page status after Save Lyrics to File</comment></data>
+  <data name="Lyrics.SaveKeptOldTrash" xml:space="preserve"><value>Сохранено · старый файл текста остался, его не удалось переместить в корзину</value><comment>Lyrics page status after Save Lyrics to File</comment></data>
   <data name="Lyrics.SaveFailed" xml:space="preserve"><value>Не удалось сохранить — проверьте права доступа к файлу</value><comment>Lyrics page status after Save Lyrics to File</comment></data>
+  <data name="Lyrics.LrcRedSync" xml:space="preserve"><value>Синхронизировать по словам моделью lrc.red</value><comment>Lyrics page pill and lrc.red's row in Search Lyrics: has lrc.red's in-house model time every word of a song it has only line-synced</comment></data>
+  <data name="Lyrics.LrcRedSyncWorking" xml:space="preserve"><value>Расставляем время каждого слова… несколько секунд</value><comment>Lyrics page pill / Search Lyrics row while lrc.red's model runs</comment></data>
+  <data name="Lyrics.LrcRedSyncRetry" xml:space="preserve"><value>Попробовать снова</value><comment>Lyrics page pill / Search Lyrics row after lrc.red's model sync failed</comment></data>
+  <data name="Lyrics.LrcRedCredit" xml:space="preserve"><value>Текст с lrc.red</value><comment>Lyrics page credit under lyrics that came from lrc.red</comment></data>
+  <data name="Lyrics.LrcRedModelCredit" xml:space="preserve"><value>Синхронизировано по словам моделью lrc.red</value><comment>Lyrics page credit, and the Search Lyrics row format, for lyrics lrc.red's model word-synced</comment></data>
+  <data name="Lyrics.LrcRedSyncNetwork" xml:space="preserve"><value>Не удалось подключиться к lrc.red. Проверьте подключение к интернету.</value><comment>Lyrics page / Search Lyrics / Lyrics Studio: lrc.red model sync failed</comment></data>
+  <data name="Lyrics.LrcRedSyncTimeout" xml:space="preserve"><value>Модель lrc.red отвечала слишком долго. Попробуйте чуть позже.</value><comment>lrc.red model sync failed: timeout</comment></data>
+  <data name="Lyrics.LrcRedSyncBusy" xml:space="preserve"><value>lrc.red сейчас перегружен. Попробуйте через минуту.</value><comment>lrc.red model sync failed: too many requests (429)</comment></data>
+  <data name="Lyrics.LrcRedSyncRefused" xml:space="preserve"><value>lrc.red: {0}</value><comment>lrc.red model sync refused; {0} = lrc.red's own message (English, from the server)</comment></data>
+  <data name="Lyrics.LrcRedSyncStatus" xml:space="preserve"><value>Не удалось синхронизировать ({0})</value><comment>lrc.red model sync refused without a message; {0} = HTTP status code</comment></data>
+  <data name="Lyrics.LrcRedSyncBadAnswer" xml:space="preserve"><value>lrc.red прислал текст, который Noctis не может прочитать.</value><comment>lrc.red model sync: unreadable answer</comment></data>
+  <data name="Lyrics.LrcRedSyncNoWords" xml:space="preserve"><value>Модели lrc.red не удалось расставить время слов этой песни.</value><comment>lrc.red model sync answered without word timings</comment></data>
   <data name="Lyrics.OffsetEarlier" xml:space="preserve"><value>Текст раньше на {0:0.0} с</value><comment>Notice pill after Ctrl+scroll over the lyrics (LyricsViewModel); {0} = seconds</comment></data>
   <data name="Lyrics.OffsetLater" xml:space="preserve"><value>Текст позже на {0:0.0} с</value><comment>Notice pill after Ctrl+scroll over the lyrics (LyricsViewModel); {0} = seconds</comment></data>
   <data name="Lyrics.OffsetInSync" xml:space="preserve"><value>Текст синхронизирован</value><comment>Notice pill after Ctrl+scroll brings the lyrics offset back to 0 (LyricsViewModel)</comment></data>
@@ -2507,6 +2529,14 @@ Deezer и TIDAL: вставьте ссылку.</value></data>
   <data name="LyricsStudio.ReviewEmptyBody" xml:space="preserve"><value>Выберите песню в списке. Песни с текстом синхронизируются, когда вы нажмёте «Начать»; для песен без текста откроется поле, куда его можно вставить.</value><comment>Review pane empty state</comment></data>
   <data name="LyricsStudio.Upgrade" xml:space="preserve"><value>Расставить тайминг слов</value><comment>Review button, shown for line-level lyrics</comment></data>
   <data name="LyricsStudio.UpgradeTip" xml:space="preserve"><value>Расставляет время для каждого слова этих строк. Файл с таймингом по строкам сохраняется.</value><comment>Review button tooltip</comment></data>
+  <data name="LyricsStudio.LrcRedSync" xml:space="preserve"><value>Синхронизировать моделью lrc.red</value><comment>Review / lyrics box button, shown when lrc.red has the song only line-synced or plain</comment></data>
+  <data name="LyricsStudio.LrcRedSyncTip" xml:space="preserve"><value>Намного быстрее, чем Lullaby: собственная модель lrc.red расставляет время каждого слова в своей копии этой песни. Её текст заменит показанный; на диск ничего не записывается, пока вы не нажмёте «Сохранить текст».</value><comment>Tooltip of the lrc.red model button</comment></data>
+  <data name="LyricsStudio.LrcRedSyncConfirm" xml:space="preserve"><value>Текст lrc.red с синхронизацией по словам заменит текст и тайминг, показанные для «{0}».
+
+На диске ничего не изменится, пока вы не нажмёте «Сохранить текст».</value><comment>Confirm before lrc.red's model replaces a review or typed lyrics ({0} = song title)</comment></data>
+  <data name="LyricsStudio.LrcRedSyncWorking" xml:space="preserve"><value>Модель lrc.red расставляет время каждого слова…</value><comment>Song status and button label while lrc.red's model runs</comment></data>
+  <data name="LyricsStudio.LrcRedSynced" xml:space="preserve"><value>Синхронизировано по словам моделью lrc.red · проверьте</value><comment>Song status after lrc.red's model word-synced it</comment></data>
+  <data name="LyricsStudio.LrcRedSource" xml:space="preserve"><value>С lrc.red · синхронизировано по словам его моделью</value><comment>Review source line for lyrics lrc.red's model word-synced</comment></data>
   <data name="LyricsStudio.ReviewHint" xml:space="preserve"><value>Нажмите на время, чтобы прослушать строку. Текст можно править на месте. Подсвеченные строки стоит перепроверить.</value><comment>Review pane hint</comment></data>
   <data name="LyricsStudio.NudgeEarlier" xml:space="preserve"><value>Все строки на 0,1 с раньше · клавиша [</value><comment>Tooltip</comment></data>
   <data name="LyricsStudio.NudgeLater" xml:space="preserve"><value>Все строки на 0,1 с позже · клавиша ]</value><comment>Tooltip</comment></data>

@@ -32,5 +32,6 @@ public sealed record OnlineLyricsSource(
     ];
 }
 
-/// <summary>One source's answer in a lyrics search: what it found (null = nothing), or that it could not answer.</summary>
-public sealed record LyricsSourceHit(string Source, LrcLibResult? Result, bool Errored);
+/// <summary>One source's answer in a lyrics search: what it found (null = nothing), or that it could not
+/// answer — <paramref name="Busy"/> when it said it was busy (503/429) rather than being unreachable.</summary>
+public sealed record LyricsSourceHit(string Source, LrcLibResult? Result, bool Errored, bool Busy = false);

@@ -16,7 +16,16 @@ public class ExistingLyricsLoaderTests : IDisposable
     {
         Directory.CreateDirectory(_dir);
         _audio = Path.Combine(_dir, "song.flac");
-        File.WriteAllText(_audio, "x");
+        // A real (silent) FLAC: lyrics count as "embedded tags" only when its tags carry them.
+        File.Copy(Path.Combine(AppContext.BaseDirectory, "Fixtures", "Audio", "Silence", "silence.flac"), _audio);
+    }
+
+    /// <summary>Puts <paramref name="lyrics"/> in the FLAC's LYRICS tag, as another tagger would.</summary>
+    private void TagLyrics(string lyrics)
+    {
+        using var f = TagLib.File.Create(_audio);
+        f.Tag.Lyrics = lyrics;
+        f.Save();
     }
 
     private Track NewTrack() => new() { Title = "Song", FilePath = _audio, SourceType = SourceType.Local };
@@ -35,6 +44,7 @@ public class ExistingLyricsLoaderTests : IDisposable
     [Fact]
     public void Load_EmbeddedLrcInThePlainField_IsExistingLyrics()
     {
+        TagLyrics(Lrc);
         var track = NewTrack();
         track.Lyrics = Lrc;
 
@@ -92,6 +102,7 @@ public class ExistingLyricsLoaderTests : IDisposable
     [Fact]
     public void Load_PrefersElrcSidecar_ThenLrc_ThenEmbedded()
     {
+        TagLyrics("[00:01.00]embedded");
         var track = NewTrack();
         track.SyncedLyrics = "[00:01.00]embedded";
         Assert.Equal("embedded tags", ExistingLyricsLoader.Load(track)!.Origin);
@@ -153,6 +164,42 @@ public class ExistingLyricsLoaderTests : IDisposable
         using var cts = new CancellationTokenSource();
         cts.Cancel();
         Assert.Throws<OperationCanceledException>(() => ExistingLyricsLoader.DetectFormats(tracks, cts.Token));
+    }
+
+    /// <summary>
+    /// Live 10-19: lyrics picked online in Search Lyrics are kept by Noctis for the song (the
+    /// lyrics page fills the library's lyrics fields beside the .elrc/.lrc it writes). With those
+    /// files deleted, Lyrics Studio said "From embedded tags · word timings" for an MP3 with no
+    /// lyrics tag at all.
+    /// </summary>
+    [Fact]
+    public void Load_LyricsNoctisKeeps_ThatTheFilesTagsDoNotCarry_AreNotEmbeddedTags()
+    {
+        var mp3 = EmbeddedLyricsTagTests.Copy(_dir, "mp3", name: "untagged");
+        Assert.True(Noctis.Services.EmbeddedLyrics.ReadFile(mp3).IsEmpty);
+        var track = new Track { Title = "Song", FilePath = mp3, SourceType = SourceType.Local };
+        // As the lyrics page leaves them after an online pick.
+        track.Lyrics = Noctis.Helpers.LyricsTextHelper.StripTimestamps(Elrc);
+        track.SyncedLyrics = Elrc;
+
+        var existing = ExistingLyricsLoader.Load(track)!;
+
+        Assert.Equal(LyricsFormat.Elrc, existing.Format);
+        Assert.Equal("Noctis's lyrics cache", existing.Origin);
+    }
+
+    [Theory]
+    [InlineData("mp3")]
+    [InlineData("flac")]
+    public void Load_LyricsTheFilesTagsCarry_AreEmbeddedTags(string ext)
+    {
+        var path = EmbeddedLyricsTagTests.Copy(_dir, ext, f => f.Tag.Lyrics = Elrc, name: "tagged");
+        var track = new Noctis.Services.MetadataService().ReadTrackMetadata(path)!;
+
+        var existing = ExistingLyricsLoader.Load(track)!;
+
+        Assert.Equal(LyricsFormat.Elrc, existing.Format);
+        Assert.Equal("embedded tags", existing.Origin);
     }
 
     public void Dispose()

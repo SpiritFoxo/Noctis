@@ -4,6 +4,7 @@
         xmlns:loc="using:Noctis.Localization"
         xmlns:vm="using:Noctis.ViewModels"
         xmlns:controls="using:Noctis.Controls"
+        xmlns:helpers="using:Noctis.Helpers"
         x:Class="Noctis.Views.LyricsSearchDialog"
         x:DataType="vm:LyricsSearchViewModel"
         Title="{loc:T LyricsSearch.Title}"
@@ -21,6 +22,12 @@
         <Style Selector="Button.ls-search">
             <Setter Property="BorderBrush" Value="Transparent" />
         </Style>
+        <!-- lrc.red's "Word-sync with lrc.red's model": a small pill with the accent ring on the
+             row's card (BorderThickness on the button, as for the search pill). -->
+        <Style Selector="Button.ls-model">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}" />
+            <Setter Property="MinHeight" Value="0" />
+        </Style>
 
         <!-- Source rows: filled pill-well cards; the selected one gets the accent ring, like a
              ticked row in Find Metadata. The 1.5px ring is always there (transparent when not
@@ -33,6 +40,10 @@
             <Setter Property="Padding" Value="0" />
             <Setter Property="Margin" Value="0,0,0,8" />
             <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <!-- Screen readers read a row as "lrc.red, Word-synced" (its ToString otherwise, 10-19). -->
+        <Style Selector="ListBox.ls-results ListBoxItem" x:DataType="vm:LyricsSearchResultRow">
+            <Setter Property="AutomationProperties.Name" Value="{Binding Converter={x:Static helpers:AccessibleNames.ItemName}}" />
         </Style>
         <Style Selector="ListBox.ls-results ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="Transparent" />
@@ -149,7 +160,20 @@
                                                    Foreground="{DynamicResource AccentForegroundBrush}" />
                                     </Border>
                                 </Grid>
-                                <TextBlock Text="{Binding FormatLabel}" FontSize="11.5" Opacity="0.65" />
+                                <TextBlock Text="{Binding FormatLabel}" FontSize="11.5" Opacity="0.65" TextWrapping="Wrap" />
+                                <!-- lrc.red's row when it has the song only line-synced or plain: its
+                                     in-house model can time every word (one request per press). -->
+                                <TextBlock Text="{Binding ModelSyncStatus}" FontSize="11" Opacity="0.65" TextWrapping="Wrap"
+                                           Margin="0,4,0,0" IsVisible="{Binding HasModelSyncStatus}" />
+                                <Button Classes="pill-secondary ls-model"
+                                        BorderThickness="1"
+                                        Margin="0,6,0,0" Padding="10,4" FontSize="11.5" HorizontalAlignment="Left"
+                                        IsVisible="{Binding CanModelSync}"
+                                        Command="{Binding $parent[ListBox].((vm:LyricsSearchViewModel)DataContext).WordSyncWithLrcRedCommand}"
+                                        CommandParameter="{Binding}"
+                                        AutomationProperties.Name="{Binding ModelSyncLabel}">
+                                    <TextBlock Text="{Binding ModelSyncLabel}" TextWrapping="Wrap" />
+                                </Button>
                             </StackPanel>
                         </Border>
                     </DataTemplate>

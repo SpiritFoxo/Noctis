@@ -65,10 +65,14 @@ public static class AccessibleNames
 
     /// <summary>A song reads "title, artist" (<see cref="Track.ToString"/>), a chart row its
     /// song, a folder "name, N songs", a lyric line its words ("..." when it has none, like
-    /// the intro); anything else its ToString().</summary>
+    /// the intro), a Search Lyrics source "lrc.red, Word-synced" (", Best" on Auto's pick);
+    /// anything else its ToString().</summary>
     public static string? NameOfItem(object? item) => item switch
     {
         TopSongRow row => row.Track.ToString(),
+        ViewModels.LyricsSearchResultRow source => source.IsBest
+            ? $"{source.Source}, {source.FormatLabel}, {Loc.T("LyricsSearch.Best")}"
+            : $"{source.Source}, {source.FormatLabel}",
         LyricLine line => string.IsNullOrWhiteSpace(line.Text) ? "..." : line.Text,
         FolderNode folder => $"{folder.DisplayName}, "
                              + (folder.TotalTrackCount == 1

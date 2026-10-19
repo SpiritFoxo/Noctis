@@ -197,4 +197,36 @@ public class TtmlLayerTests
         var line = TtmlParser.Parse(doc).Lines![0];
         Assert.Equal("Line one Line two", line.Translation);
     }
+
+    // lrc.red/s/JPP302200613.ttml (YOASOBI 「祝福」, fetched 2026-10-19), trimmed to its first two
+    // lines: lrc.red keeps Apple's layers, but under its own <sourceMetadata>, keyed by lrc:key.
+    private const string LrcRedDoc =
+        "<tt xmlns=\"http://www.w3.org/ns/ttml\" xmlns:lrc=\"http://lrc.red/lyric-ttml-internal\" xmlns:ttm=\"http://www.w3.org/ns/ttml#metadata\" lrc:timing=\"Word\" xml:lang=\"ja\">" +
+        "<head><metadata><ttm:agent type=\"person\" xml:id=\"voice1\"><ttm:name type=\"full\">YOASOBI</ttm:name></ttm:agent>" +
+        "<sourceMetadata xmlns=\"http://lrc.red/lyric-ttml-internal\" leadingSilence=\"0.040\">" +
+        "<translations><translation type=\"subtitle\" xml:lang=\"en-US\"><text for=\"L1\">You think of the stars floating</text><text for=\"L2\">Far, far away as you fall asleep</text></translation></translations>" +
+        "<songwriters><songwriter>Ayase</songwriter></songwriters>" +
+        "<transliterations><transliteration xml:lang=\"ja-Latn\">" +
+        "<text for=\"L1\"><span begin=\"0.564\" end=\"0.863\" xmlns=\"http://www.w3.org/ns/ttml\">haru</span><span begin=\"0.863\" end=\"1.028\" xmlns=\"http://www.w3.org/ns/ttml\">ka</span> <span begin=\"1.028\" end=\"1.507\" xmlns=\"http://www.w3.org/ns/ttml\">tooku</span></text>" +
+        "<text for=\"L2\"><span begin=\"3.294\" end=\"3.687\" xmlns=\"http://www.w3.org/ns/ttml\">omo</span><span begin=\"3.687\" end=\"4.017\" xmlns=\"http://www.w3.org/ns/ttml\">i</span></text>" +
+        "</transliteration></transliterations></sourceMetadata></metadata></head>" +
+        "<body dur=\"3:12.400\"><div begin=\"0.564\" end=\"12.711\" lrc:songPart=\"Intro\">" +
+        "<p begin=\"0.564\" end=\"3.294\" lrc:key=\"L1\" ttm:agent=\"voice1\"><span begin=\"0.564\" end=\"0.863\">遥</span><span begin=\"0.863\" end=\"1.028\">か</span><span begin=\"1.028\" end=\"1.507\">遠く</span></p>" +
+        "<p begin=\"3.294\" end=\"6.045\" lrc:key=\"L2\" ttm:agent=\"voice1\"><span begin=\"3.294\" end=\"3.687\">想</span><span begin=\"3.687\" end=\"4.017\">い</span></p>" +
+        "</div></body></tt>";
+
+    [Fact]
+    public void LrcRedSourceMetadataLayers_AttachByLrcKey()
+    {
+        var lines = TtmlParser.Parse(LrcRedDoc).Lines!;
+
+        Assert.Equal(2, lines.Count);
+        Assert.Equal("You think of the stars floating", lines[0].Translation);
+        Assert.Equal("haruka tooku", lines[0].Transliteration);
+        Assert.Equal(new[] { "haruka", "tooku" }, lines[0].TransliterationWords!.Select(w => w.Text.Trim()));
+        Assert.Equal("Far, far away as you fall asleep", lines[1].Translation);
+        Assert.Equal("omoi", lines[1].Transliteration);
+        // The songwriter credit in the same block is no lyric layer.
+        Assert.DoesNotContain(lines, l => l.Translation?.Contains("Ayase") == true || l.Text.Contains("Ayase"));
+    }
 }

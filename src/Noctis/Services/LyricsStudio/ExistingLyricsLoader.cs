@@ -7,7 +7,8 @@ namespace Noctis.Services.LyricsStudio;
 /// <summary>Timed lyrics a track already has, ready for the review pane without a model run.</summary>
 /// <param name="Format">Word-level (<see cref="LyricsFormat.Elrc"/>) or line-level (<see cref="LyricsFormat.Lrc"/>).</param>
 /// <param name="Lines">Line-level input yields lines with an empty word list.</param>
-/// <param name="Origin">Where it came from, for the review header: ".elrc file", ".lrc file", "embedded tags".</param>
+/// <param name="Origin">Where it came from, for the review header: ".elrc file", ".lrc file", "embedded tags"
+/// (the audio file's own tags), "Noctis's lyrics cache" (lyrics Noctis keeps for the song that the file does not carry).</param>
 /// <param name="Path">The sidecar path, null for embedded lyrics.</param>
 public sealed record ExistingLyrics(LyricsFormat Format, IReadOnlyList<AlignedLine> Lines, string Origin, string? Path);
 
@@ -66,9 +67,26 @@ public static partial class ExistingLyricsLoader
         {
             var lines = ParseTimed(embedded);
             if (lines.Count > 0)
-                return new ExistingLyrics(HasWordTimings(lines) ? LyricsFormat.Elrc : LyricsFormat.Lrc, lines, "embedded tags", null);
+                return new ExistingLyrics(HasWordTimings(lines) ? LyricsFormat.Elrc : LyricsFormat.Lrc, lines,
+                    InFileTags(track, embedded) ? "embedded tags" : "Noctis's lyrics cache", null);
         }
         return null;
+    }
+
+    /// <summary>
+    /// Whether the audio file's own tags carry <paramref name="timed"/>. The library's lyrics
+    /// fields start as the tags the scan read, but they also keep lyrics Noctis got for the song
+    /// itself: an online pick fills them beside the .elrc/.lrc the lyrics page writes. With those
+    /// files deleted they read "From embedded tags" for an MP3 with no lyrics tag (live 10-19).
+    /// </summary>
+    private static bool InFileTags(Track track, string timed)
+    {
+        var path = track.FilePath;
+        if (track.SourceType != SourceType.Local || string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return false;
+        return Comparable(EmbeddedLyrics.ReadFile(path).TimedText) == Comparable(timed);
+
+        static string Comparable(string text) =>
+            text.TrimStart('﻿').Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n').TrimEnd();
     }
 
     /// <summary>

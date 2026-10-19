@@ -126,7 +126,7 @@ public partial class LyricsStudioViewModel : ViewModelBase
     [ObservableProperty] private string _queueFormatText = string.Empty;
 
     public bool HasFfmpeg => _engine.HasFfmpeg;
-    public bool CanStart => !IsRunning && IsModelInstalled && HasFfmpeg
+    public bool CanStart => !IsRunning && !IsLrcRedSyncing && IsModelInstalled && HasFfmpeg
         && (Queue.Any(i => i.Status == StudioStatus.Waiting) || Selected is { Status: StudioStatus.Loaded or StudioStatus.Ready });
     /// <summary>"Start" runs the queue; with nothing queued the button re-times the song on screen.</summary>
     public string StartLabel => Queue.Any(i => i.Status == StudioStatus.Waiting) ? "Start" : Selected is { Status: StudioStatus.Loaded or StudioStatus.Ready } ? "Re-sync" : "Start";
@@ -162,13 +162,14 @@ public partial class LyricsStudioViewModel : ViewModelBase
         LyricsStudioSource.Lrclib => "From LRCLIB",
         LyricsStudioSource.Transcription => "Transcribed · check the words",
         LyricsStudioSource.PastedLyrics => "From your lyrics",
+        LyricsStudioSource.LrcRed => Loc("LyricsStudio.LrcRedSource"),
         LyricsStudioSource.ExistingFile => Selected?.Existing is { } e
             ? $"From {e.Origin} · {(e.Format == LyricsFormat.Elrc ? "word timings" : "line timings")}"
             : "Loaded",
         _ => string.Empty,
     };
     public string ReviewConfidenceText => Selected?.Result is { } r
-        ? (r.Source == LyricsStudioSource.ExistingFile ? string.Empty : $"{Math.Round(r.Confidence * 100)}% heard · ")
+        ? (r.Source is LyricsStudioSource.ExistingFile or LyricsStudioSource.LrcRed ? string.Empty : $"{Math.Round(r.Confidence * 100)}% heard · ")
           + $"{r.Lines.Count} lines · saves {(WordTimings ? "ELRC" : "LRC")}{(SaveTtml ? " + TTML" : string.Empty)}"
         : string.Empty;
     public bool ReviewIsTranscription => Selected?.Result?.Source == LyricsStudioSource.Transcription;
@@ -341,6 +342,7 @@ public partial class LyricsStudioViewModel : ViewModelBase
     partial void OnIsRunningChanged(bool value)
     {
         RaiseStartState();
+        RaiseLrcRedState();
         OnPropertyChanged(nameof(ReviewCanUpgrade));
         OnPropertyChanged(nameof(CanAlignDraft));
         OnPropertyChanged(nameof(CanTranscribeDraft));
@@ -391,6 +393,7 @@ public partial class LyricsStudioViewModel : ViewModelBase
             }
         }
         RaiseReviewChanged();
+        _ = LookUpLrcRedAsync(value);
     }
 
     /// <summary>Any text, time or word edit on the review on screen; drafts of loaded songs are only written when this is set.</summary>
@@ -507,6 +510,7 @@ public partial class LyricsStudioViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsSelectedWorking));
         OnPropertyChanged(nameof(ShowReviewEmpty));
         OnPropertyChanged(nameof(CanAlignDraft));
+        RaiseLrcRedState();
         RefreshLivePreview();
     }
 
@@ -859,8 +863,9 @@ public partial class LyricsStudioViewModel : ViewModelBase
             Requeue(current);
             // The user's own lyrics (pasted, typed, a corrected transcript) are re-timed as the
             // review shows them now, edits included: Re-sync used to time the lyrics box, or the
-            // song's .lrc the user had replaced (Discord, Mistery 2026-10-10).
-            if (current.BeforeRerun?.Result is { Source: LyricsStudioSource.PastedLyrics } shown)
+            // song's .lrc the user had replaced (Discord, Mistery 2026-10-10). So are lrc.red's,
+            // which replaced the song's own on screen.
+            if (current.BeforeRerun?.Result is { Source: LyricsStudioSource.PastedLyrics or LyricsStudioSource.LrcRed } shown)
                 current.SourceOverride = shown.Lines.Select(l => l.Text).ToList();
             items.Add(current);
         }
@@ -884,6 +889,133 @@ public partial class LyricsStudioViewModel : ViewModelBase
             item.Existing = loaded with { Lines = ReviewLines.Select(l => l.ToAlignedLine()).Where(l => l.Text.Length > 0).OrderBy(l => l.Start).ToList() };
         Requeue(item);
         await RunAsync(new List<StudioItem> { item });
+    }
+
+    // ── lrc.red's model: word timings in seconds instead of Lullaby's minutes ──
+
+    /// <summary>lrc.red, for "Sync with lrc.red's model"; set by the app. Null: never offered.</summary>
+    internal ILrcRedLyricsService? LrcRed
+    {
+        get => _lrcRed;
+        set
+        {
+            _lrcRed = value;
+            _ = LookUpLrcRedAsync(Selected);
+            RaiseLrcRedState();
+        }
+    }
+    private ILrcRedLyricsService? _lrcRed;
+    private CancellationTokenSource? _lrcRedCts;
+
+    [ObservableProperty] private bool _isLrcRedSyncing;
+
+    partial void OnIsLrcRedSyncingChanged(bool value)
+    {
+        RaiseStartState();
+        RaiseLrcRedState();
+    }
+
+    private bool LrcRedOn()
+    {
+        try { return _settings().LrcRedEnabled; }
+        catch { return false; }
+    }
+
+    /// <summary>
+    /// The selected song is one lrc.red has only line-synced or plain (its lookup matched it), lrc.red
+    /// is on in Settings, and the review on screen has no word timing yet; nothing else is running.
+    /// </summary>
+    public bool CanLrcRedSync => _lrcRed != null && !IsRunning && !IsLrcRedSyncing && LrcRedOn()
+        && Selected is { LrcRedMatch.IsWordSynced: false, Status: not (StudioStatus.Working or StudioStatus.Saved) } item
+        && item.ExistingFormat != LyricsFormat.Elrc
+        && !(item.Result is { } shown && ExistingLyricsLoader.HasWordTimings(shown.Lines));
+
+    /// <summary>The button stays while lrc.red's model runs, saying so.</summary>
+    public bool ShowLrcRedSync => IsLrcRedSyncing || CanLrcRedSync;
+    public string LrcRedSyncLabel => Loc(IsLrcRedSyncing ? "LyricsStudio.LrcRedSyncWorking" : "LyricsStudio.LrcRedSync");
+
+    private void RaiseLrcRedState()
+    {
+        OnPropertyChanged(nameof(CanLrcRedSync));
+        OnPropertyChanged(nameof(ShowLrcRedSync));
+        OnPropertyChanged(nameof(LrcRedSyncLabel));
+    }
+
+    /// <summary>
+    /// Asks lrc.red's lookup once per song whether it has it (the service remembers the answer), so
+    /// the button only shows for a match. Only the lookup: the model runs on the button's press.
+    /// </summary>
+    private async Task LookUpLrcRedAsync(StudioItem? item)
+    {
+        if (item is null || _lrcRed is not { } lrcRed || item.LrcRedLooked || !LrcRedOn()) return;
+        item.LrcRedLooked = true;
+        try
+        {
+            item.LrcRedMatch = await lrcRed.FindMatchAsync(item.Track.Artist ?? string.Empty, item.Track.Title ?? string.Empty, item.Track.Duration.TotalSeconds);
+        }
+        catch (Exception ex)
+        {
+            // Asked again the next time the song is selected.
+            item.LrcRedLooked = false;
+            DebugLogger.Warn(DebugLogger.Category.Lyrics, "LyricsStudio.LrcRedLookupFailed", ex.Message);
+        }
+        if (ReferenceEquals(Selected, item)) RaiseLrcRedState();
+    }
+
+    /// <summary>
+    /// "Sync with lrc.red's model": lrc.red's in-house model times every word of its own copy of the
+    /// song, in seconds where Lullaby takes minutes, and its lyrics open for review like a run's
+    /// result. As Re-sync does, a review on screen (or lyrics typed in the box) is replaced only after
+    /// asking; nothing is written until Save. One request per press, never retried on its own.
+    /// </summary>
+    [RelayCommand]
+    private async Task SyncWithLrcRed()
+    {
+        if (!CanLrcRedSync || Selected is not { LrcRedMatch: { } match } item || _lrcRed is not { } lrcRed) return;
+        if ((item.Result is not null && item.Status is StudioStatus.Loaded or StudioStatus.Ready || item.HasUnsavedLyricsBox)
+            && !await ConfirmAsync(Loc("LyricsStudio.LrcRedSyncConfirm", item.Title)))
+            return;
+        if (!CanLrcRedSync || !ReferenceEquals(Selected, item)) return;
+
+        var cts = new CancellationTokenSource();
+        _lrcRedCts = cts;
+        var before = item.StatusText;
+        IsLrcRedSyncing = true;
+        item.StatusText = RunStatusText = Loc("LyricsStudio.LrcRedSyncWorking");
+        DebugLogger.Info(DebugLogger.Category.Lyrics, "LyricsStudio.LrcRedSync", $"{item.Title} | isrc={match.Isrc}");
+        try
+        {
+            var synced = await lrcRed.SyncWithModelAsync(match.Isrc, cts.Token);
+            var lines = ExistingLyricsLoader.ParseTimed(LyricsViewModel.SyncedToWrite(synced) ?? string.Empty);
+            if (!ExistingLyricsLoader.HasWordTimings(lines))
+                throw new LrcRedSyncException(LrcRedSyncFailure.NotWordSynced);
+            var result = new LyricsStudioResult(item.Track, lines, LyricsStudioSource.LrcRed, 1, string.Empty, 0);
+            // Word timings are what was asked for: Save writes ELRC, as after Time every word.
+            WordTimings = true;
+            item.BeforeRerun = null;
+            item.Result = result;
+            item.Status = StudioStatus.Ready;
+            item.StatusText = RunStatusText = Loc("LyricsStudio.LrcRedSynced");
+            _drafts?.Save(item.Track.Id, LyricsStudioDraft.From(result));
+            DebugLogger.Info(DebugLogger.Category.Lyrics, "LyricsStudio.LrcRedSynced", $"{item.Title} | lines={lines.Count}");
+            if (ReferenceEquals(Selected, item))
+                OnSelectedChanged(item);
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+            item.StatusText = before;
+        }
+        catch (Exception ex)
+        {
+            item.StatusText = RunStatusText = LyricsViewModel.LrcRedSyncMessage(ex);
+            DebugLogger.Warn(DebugLogger.Category.Lyrics, "LyricsStudio.LrcRedSyncFailed", $"{item.Title} | {ex.Message}");
+        }
+        finally
+        {
+            if (ReferenceEquals(_lrcRedCts, cts)) _lrcRedCts = null;
+            cts.Dispose();
+            IsLrcRedSyncing = false;
+        }
     }
 
     private async Task<bool> ConfirmAsync(string message)
@@ -1059,7 +1191,13 @@ public partial class LyricsStudioViewModel : ViewModelBase
                         done++;
                         continue;
                     }
-                    if (pasted is not null && !prefilledBox) result = result with { Source = LyricsStudioSource.PastedLyrics };
+                    if (pasted is not null && !prefilledBox)
+                    {
+                        result = result with { Source = LyricsStudioSource.PastedLyrics };
+                        // lrc.red's lyrics re-timed: their romaji / translation lines ride along.
+                        if (item.BeforeRerun?.Result is { Source: LyricsStudioSource.LrcRed } fromLrcRed)
+                            result = result with { Lines = ExistingLyricsLoader.CarryCompanions(fromLrcRed.Lines, result.Lines) };
+                    }
                     // Timed from the song's own lyrics: their romaji / translation lines ride along.
                     else if (item.Existing is { } source)
                         result = result with { Lines = ExistingLyricsLoader.CarryCompanions(source.Lines, result.Lines) };
@@ -1678,6 +1816,7 @@ public partial class LyricsStudioViewModel : ViewModelBase
     private async Task Close()
     {
         _runCts?.Cancel();
+        _lrcRedCts?.Cancel();
         if (Selected is { } current) PersistDraft(current);
         // The dialog's pane leaves with it: the lyrics page and side panel show the song's own lyrics
         // again, and an edit still waiting for the pane is not pushed after the dialog closed.
@@ -1780,6 +1919,11 @@ public partial class LyricsStudioViewModel : ViewModelBase
 
         /// <summary>Timed lyrics loaded from the song itself (null until selected, or when it has none).</summary>
         public ExistingLyrics? Existing { get; set; }
+
+        /// <summary>lrc.red's recording of the song (null: none, or not asked yet — see <see cref="LrcRedLooked"/>).</summary>
+        internal LrcRedMatch? LrcRedMatch { get; set; }
+        /// <summary>lrc.red's lookup has answered for this song (or is asking).</summary>
+        internal bool LrcRedLooked { get; set; }
 
         /// <summary>Set by Re-sync / Upgrade so the "skip songs that already have this format" rule does not apply.</summary>
         public bool ForceRun { get; set; }
